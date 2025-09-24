@@ -19,7 +19,7 @@ module.exports.findAll = async (
   let varIndex = 1;
 
   if (searchTerm) {
-    searchQuery += `AND (name ILIKE $${varIndex} OR description ILIKE $${varIndex})`;
+    searchQuery += `AND (name ILIKE $${varIndex})`;
     searchVariables.push(`%${searchTerm}%`);
     varIndex++;
   }
@@ -50,8 +50,8 @@ module.exports.find = async (id) => {
   return tag;
 };
 
-module.exports.create = async ({ name, description }) => {
-  const errors = await tagCreationValidator({ name, description });
+module.exports.create = async ({ name }) => {
+  const errors = await tagCreationValidator({ name });
 
   if (errors.length != 0) {
     return { errors };
@@ -60,11 +60,11 @@ module.exports.create = async ({ name, description }) => {
   const currentTime = calculateCurrentTime();
 
   const query = `
-    INSERT into tags (name, description, created_at, updated_at)
-    VALUES ($1, $2, $3, $4)
+    INSERT into tags (name, created_at, updated_at)
+    VALUES ($1, $2, $3)
     RETURNING *
   `;
-  const variables = [name, description, currentTime, currentTime];
+  const variables = [name, currentTime, currentTime];
 
   dbLogger(query, variables, 'Create Tag');
 
@@ -74,8 +74,8 @@ module.exports.create = async ({ name, description }) => {
   return { tag, errors };
 };
 
-module.exports.update = async ({ id, name, description }) => {
-  const errors = await tagUpdationValidator({ id, name, description });
+module.exports.update = async ({ id, name }) => {
+  const errors = await tagUpdationValidator({ id, name });
 
   if (errors.length != 0) {
     return { errors };
@@ -85,11 +85,11 @@ module.exports.update = async ({ id, name, description }) => {
 
   const query = `
     UPDATE tags
-    SET name = $1, description = $2, updated_at = $3
-    WHERE id = $4
+    SET name = $1, updated_at = $2
+    WHERE id = $3
     RETURNING *
   `;
-  const variables = [name, description, currentTime, id];
+  const variables = [name, currentTime, id];
 
   dbLogger(query, variables, 'Update Tag');
 

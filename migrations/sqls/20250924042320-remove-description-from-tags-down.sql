@@ -1,0 +1,2 @@
+ALTER TABLE IF EXISTS tags
+ADD COLUMN description TEXT;

@@ -4,7 +4,6 @@ const tagType = `
   type Tag {
     id: ID!
     name: String
-    description: String
   }
 `
 
