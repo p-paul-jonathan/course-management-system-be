@@ -4,7 +4,8 @@ const courseCreateInputType = `
   input CourseCreateInput {
     name: String!,
     description: String!,
-    live: Boolean!
+    live: Boolean!,
+    tagIds: [ID]
 	}
 `;
 
@@ -14,7 +15,8 @@ const courseUpdateInputType = `
     name: String!,
     description: String!,
     live: Boolean,
-    chapter_order: [Int]
+    chapter_order: [Int],
+    tagIds: [ID]
   }
 `;
 
