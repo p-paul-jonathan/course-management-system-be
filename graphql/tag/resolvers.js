@@ -11,6 +11,10 @@ const tag = async ({ id }, _context, _info) => {
   return await Tag.find(id);
 };
 
+const tagsByIds = async ({ page, per, ids }, _context, _info) => {
+  return await Tag.findByIds(ids, page, per);
+}
+
 const tagCreate = async ({ tag }, context, _info) => {
   getAuthenticatedUser(context);
   return await Tag.create(tag);
@@ -29,6 +33,7 @@ const tagDelete = async ({ id }, context, _info) => {
 const resolvers = {
   tags,
   tag,
+  tagsByIds,
   tagCreate,
   tagUpdate,
   tagDelete

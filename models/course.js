@@ -14,7 +14,8 @@ module.exports.findAll = async (
   withUser = false,
   searchTerm = '',
   userIds = [],
-  withTags = false
+  withTags = false,
+  tagIds = []
 ) => {
   let searchQuery = `
     live = $1
@@ -34,6 +35,8 @@ module.exports.findAll = async (
     searchVariables.push(userIds);
     varIndex++;
   }
+
+  // TODO: Paul add tag searching
 
   const coursesData = await findWithPagination(
     'courses',
@@ -60,7 +63,8 @@ module.exports.findByUserId = async (
   per = PER_PAGE,
   withUser = false,
   searchTerm = null,
-  withTags = false
+  withTags = false,
+  tagIds = []
 ) => {
   let searchQuery = `
     user_id = $1 AND

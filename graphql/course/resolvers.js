@@ -4,19 +4,19 @@ const Course = require('../../models/course');
 const { getAuthenticatedUser } = require('../../services/auth');
 const { containsSelection } = require('../helpers');
 
-const courses = async ({ page, per, searchTerm, userIds }, _context, info) => {
+const courses = async ({ page, per, searchTerm, userIds, tagIds }, _context, info) => {
   const withUser = containsSelection(info, 'user');
   const withTags = containsSelection(info, 'tags');
 
-  return await Course.findAll(page, per, withUser, searchTerm, userIds, withTags);
+  return await Course.findAll(page, per, withUser, searchTerm, userIds, withTags, tagIds);
 };
 
-const createdCourses = async ({ page, per, searchTerm }, context, info) => {
+const createdCourses = async ({ page, per, searchTerm, tagIds }, context, info) => {
   getAuthenticatedUser(context);
   const withUser = containsSelection(info, 'user');
   const withTags = containsSelection(info, 'tags');
 
-  return await Course.findByUserId(context.user.id, page, per, withUser, searchTerm, withTags);
+  return await Course.findByUserId(context.user.id, page, per, withUser, searchTerm, withTags, tagIds);
 }
 
 const course = async ({ id }, _context, info) => {

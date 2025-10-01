@@ -50,6 +50,22 @@ module.exports.find = async (id) => {
   return tag;
 };
 
+module.exports.findByIds = async (ids, page = 1, per = PER_PAGE) => {
+  let searchQuery = `
+    id = ANY($1) AND
+    deleted_at IS NULL
+  `;
+  const searchVariables = [ids];
+
+  return findWithPagination(
+    'tags',
+    searchQuery,
+    searchVariables,
+    page,
+    per
+  );
+}
+
 module.exports.create = async ({ name }) => {
   const errors = await tagCreationValidator({ name });
 
