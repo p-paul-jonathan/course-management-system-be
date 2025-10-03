@@ -16,7 +16,7 @@ module.exports.findWithPagination = async (
   per = Math.min(per, MAX_PER_PAGE);
 
   const query = `
-    SELECT ${validateTableName(table)}.* from ${validateTableName(table)}
+    SELECT DISTINCT ${validateTableName(table)}.* from ${validateTableName(table)}
     ${joinClause}
     WHERE ${conditionString}
     ORDER BY ${orderClause}
@@ -44,7 +44,7 @@ module.exports.pageInfo = async (
   joinClause = ''
 ) => {
   const query = `
-    SELECT count(${validateTableName(table)}.id) from ${validateTableName(table)}
+    SELECT COUNT(DISTINCT ${validateTableName(table)}.id) from ${validateTableName(table)}
     ${joinClause}
     WHERE ${conditionString}
   `;
