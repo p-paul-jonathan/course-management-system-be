@@ -10,6 +10,7 @@ const courseType = `
     live: Boolean!
     user: User
     chapter_order: [ID]
+    tags: [Tag]
   }
 `;
 
@@ -19,8 +20,6 @@ const courseMutationResponseType = `
     errors: [Error]
   }
 `;
-
-
 
 const types =
   courseType +

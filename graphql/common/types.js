@@ -14,6 +14,7 @@ const paginationResponseType = `
     courses: [Course]
     chapters: [Chapter]
     users: [User]
+    tags: [Tag]
     pageInfo: PageInfo!
   }
 `;

@@ -1,0 +1,2 @@
+ALTER TABLE IF EXISTS tags
+DROP COLUMN IF EXISTS description;

@@ -19,11 +19,17 @@ const chapterQueries = require('./chapter/queries');
 const chapterInputTypes = require('./chapter/inputTypes');
 const chapterMutations = require('./chapter/mutations');
 
+const tagTypes = require('./tag/types');
+const tagQueries = require('./tag/queries');
+const tagInputTypes = require('./tag/inputTypes');
+const tagMutations = require('./tag/mutations');
+
 const types = `
   ${commonTypes}
   ${courseTypes}
   ${userTypes}
   ${chapterTypes}
+  ${tagTypes}
 `;
 
 const queries = `
@@ -31,6 +37,7 @@ const queries = `
     ${courseQueries}
     ${userQueries}
     ${chapterQueries}
+    ${tagQueries}
   }
 `;
 
@@ -38,6 +45,7 @@ const inputTypes = `
   ${courseInputTypes}
   ${userInputTypes}
   ${chapterInputTypes}
+  ${tagInputTypes}
 `;
 
 const mutations = `
@@ -45,6 +53,7 @@ const mutations = `
     ${courseMutations}
     ${userMutations}
     ${chapterMutations}
+    ${tagMutations}
   }
 `;
 

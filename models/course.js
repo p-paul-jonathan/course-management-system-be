@@ -3,7 +3,7 @@
 const db = require('../config/database');
 const { PER_PAGE } = require('../constants');
 const { dbLogger } = require('../services/db');
-const { courseCreationValidator, courseUpdationValidator, courseDeletionValidator, chapterOrderUpdationValidator } = require('../validators/course');
+const { courseCreationValidator, courseUpdationValidator, courseDeletionValidator } = require('../validators/course');
 const { findWithPagination } = require('./concerns/pagination');
 const { calculateCurrentTime } = require('./concerns/time');
 const User = require('./user');
@@ -13,24 +13,34 @@ module.exports.findAll = async (
   per = PER_PAGE,
   withUser = false,
   searchTerm = '',
-  userIds = []
+  userIds = [],
+  withTags = false,
+  tagIds = []
 ) => {
   let searchQuery = `
-    live = $1
-    AND deleted_at IS NULL
+    courses.live = $1
+    AND courses.deleted_at IS NULL
   `;
   const searchVariables = [true];
   let varIndex = 2;
+  let joinClause = '';
 
   if (searchTerm) {
-    searchQuery += ` AND (name ILIKE $${varIndex} OR description ILIKE $${varIndex})`;
+    searchQuery += ` AND (courses.name ILIKE $${varIndex} OR courses.description ILIKE $${varIndex})`;
     searchVariables.push(`%${searchTerm}%`);
     varIndex++;
   }
 
   if (userIds && userIds.length > 0) {
-    searchQuery += ` AND user_id = ANY($${varIndex})`;
+    searchQuery += ` AND courses.user_id = ANY($${varIndex})`;
     searchVariables.push(userIds);
+    varIndex++;
+  }
+
+  if (tagIds && tagIds.length > 0) {
+    searchQuery += ` AND courses_tags.tag_id = ANY($${varIndex})`;
+    searchVariables.push(tagIds);
+    joinClause = 'INNER JOIN courses_tags ON courses.id = courses_tags.course_id';
     varIndex++;
   }
 
@@ -39,44 +49,77 @@ module.exports.findAll = async (
     searchQuery,
     searchVariables,
     page,
-    per
+    per,
+    'courses.id ASC',
+    joinClause
   );
 
-  if (!withUser) return coursesData;
+  if (withUser) {
+    coursesData.courses = await preloadUsers(coursesData.courses);
+  }
 
-  coursesData.courses = await preloadUsers(coursesData.courses);
+  if (withTags) {
+    coursesData.courses = await preloadTags(coursesData.courses);
+  }
+
   return coursesData;
 };
 
-module.exports.findByUserId = async (userId, page = 1, per = PER_PAGE, withUser = false, searchTerm = null) => {
+module.exports.findByUserId = async (
+  userId,
+  page = 1,
+  per = PER_PAGE,
+  withUser = false,
+  searchTerm = null,
+  withTags = false,
+  tagIds = []
+) => {
   let searchQuery = `
-    user_id = $1 AND
-    deleted_at IS NULL
+    courses.user_id = $1 AND
+    courses.deleted_at IS NULL
   `;
   const searchVariables = [userId];
+  let varIndex = 2;
+  let joinClause = '';
 
   if (searchTerm) {
     searchQuery += ` AND
-      (name ILIKE $2 OR description ILIKE $2)
+      (courses.name ILIKE $${varIndex} OR courses.description ILIKE $${varIndex})
     `;
     searchVariables.push(`%${searchTerm}%`);
+    varIndex++;
   }
+
+  if (tagIds && tagIds.length > 0) {
+    searchQuery += ` AND courses_tags.tag_id = ANY($${varIndex})`;
+    searchVariables.push(tagIds);
+    joinClause = 'INNER JOIN courses_tags ON courses.id = courses_tags.course_id';
+    varIndex++;
+  }
+
   const coursesData = await findWithPagination(
     'courses',
     searchQuery,
     searchVariables,
     page,
-    per
+    per,
+    'courses.id ASC',
+    joinClause
   );
 
-  if (!withUser) { return coursesData; }
-  const user = await User.find(userId);
-  coursesData.courses = coursesData.courses.map((course) => ({ ...course, user }));
+  if (withUser) {
+    const user = await User.find(userId);
+    coursesData.courses = coursesData.courses.map((course) => ({ ...course, user }));
+  }
+
+  if (withTags) {
+    coursesData.courses = await preloadTags(coursesData.courses);
+  }
 
   return coursesData;
 };
 
-module.exports.find = async (id, withUser = false) => {
+module.exports.find = async (id, withUser = false, withTags = false) => {
   const query = `
     SELECT * FROM courses
     WHERE id = $1 AND deleted_at IS NULL
@@ -86,19 +129,24 @@ module.exports.find = async (id, withUser = false) => {
   dbLogger(query, variables, 'Find Course');
 
   const result = await db.query(query, variables);
-  const course = result.rows[0] || null;
+  let course = result.rows[0] || null;
 
   if (!course) { return; }
-  if (!withUser) { return course; }
 
-  const user = await User.find(course.user_id);
-  course.user = user;
+  if (withUser) {
+    const user = await User.find(course.user_id);
+    course.user = user;
+  }
+
+  if (withTags) {
+    course = (await preloadTags([course]))[0];
+  }
 
   return course;
 };
 
-module.exports.create = async ({ name, description, live }, userId) => {
-  const errors = courseCreationValidator({ name, description });
+module.exports.create = async ({ name, description, live, tagIds = [] }, userId) => {
+  const errors = await courseCreationValidator({ name, description, tagIds });
 
   if (errors.length != 0) {
     return { errors };
@@ -118,11 +166,13 @@ module.exports.create = async ({ name, description, live }, userId) => {
   const result = await db.query(query, variables);
   const course = result.rows[0];
 
+  if (course) { await updateCourseTags(tagIds, course.id, errors); }
+
   return { course, errors };
 };
 
-module.exports.update = async ({ id, name, description, live }, userId) => {
-  const errors = await courseUpdationValidator({ id, name, description, userId });
+module.exports.update = async ({ id, name, description, live, tagIds = [] }, userId) => {
+  const errors = await courseUpdationValidator({ id, name, description, userId, tagIds });
 
   if (errors.length != 0) {
     return { errors };
@@ -140,6 +190,8 @@ module.exports.update = async ({ id, name, description, live }, userId) => {
 
   const result = await db.query(query, variables);
   const course = result.rows[0] || null;
+
+  if (course) { await updateCourseTags(tagIds, course.id, errors); }
 
   return { course, errors };
 };
@@ -199,7 +251,7 @@ module.exports.updateChapterOrder = async (id, chapterOrder) => {
   const result = await db.query(query, variables);
 
   if (result.rowCount == 0) {
-    errors.append({
+    errors.push({
       code: 500,
       message: 'Error Occured while updating chapter order',
       location: 'chapter_order'
@@ -226,7 +278,107 @@ async function preloadUsers(courses) {
   const userIdMapping = users.reduce((acc, user) => {
     acc[user.id] = user;
     return acc;
-  }, {})
-  courses = courses.map((course) => ({ ...course, user: userIdMapping[course.user_id] }));
-  return courses;
+  }, {});
+
+  return courses.map((course) => ({ ...course, user: userIdMapping[course.user_id] }));
+}
+
+async function preloadTags(courses) {
+  const courseIds = courses.map(c => c.id);
+  const query = `
+    SELECT courses.id as course_id, tags.*
+    FROM courses
+    INNER JOIN courses_tags
+      ON courses.id = courses_tags.course_id
+    INNER JOIN tags
+      ON tags.id = courses_tags.tag_id
+    WHERE courses.id = ANY($1)
+  `;
+  const variables = [courseIds];
+
+  dbLogger(query, variables, 'Preloading tags');
+
+  const result = await db.query(query, variables);
+  const coursesTagJoin = result.rows;
+
+
+  const tagMapping = coursesTagJoin.reduce((acc, row) => {
+    const { course_id, ...rest } = row;
+    if (acc[course_id] === undefined) {
+      acc[course_id] = [];
+    }
+    acc[course_id].push(rest);
+
+    return acc;
+  }, {});
+
+  return courses.map((course) => ({ ...course, tags: tagMapping[course.id] || [] }));
+}
+
+async function tagIds(courseId) {
+  const query = `
+    SELECT tag_id
+    FROM courses_tags
+    WHERE course_id = $1
+  `;
+  const variables = [courseId];
+
+  dbLogger(query, variables, 'fetch tags');
+
+  const result = await db.query(query, variables);
+
+  return result.rows.map((row) => row.tag_id.toString()) || [];
+}
+
+async function updateCourseTags(newTagIds, courseId, errors) {
+  const courseTagIds = await tagIds(courseId);
+  const formattedNewTagIds = newTagIds.map((t) => t.toString());
+
+  const tagsToAdd = formattedNewTagIds.filter((t) => !courseTagIds.includes(t));
+  const tagsToRemove = courseTagIds.filter((t) => !formattedNewTagIds.includes(t));
+
+  await addTagsToCourse(tagsToAdd, courseId, errors);
+  await removeTagsFromCourse(tagsToRemove, courseId, errors);
+}
+
+async function addTagsToCourse(tagsToAdd, courseId, errors) {
+  const valuesToAdd = tagsToAdd.map((_t, idx) => `($1, $${idx + 2})`).join(',');
+  const query = `
+    INSERT INTO courses_tags (course_id, tag_id)
+    VALUES ${valuesToAdd}
+  `;
+  const variables = [courseId, ...tagsToAdd];
+
+  dbLogger(query, variables, 'add tags');
+
+  try {
+    await db.query(query, variables);
+  } catch (error) {
+    errors.push({
+      code: 500,
+      location: 'tags',
+      message: 'error in updating tags'
+    })
+  }
+}
+
+async function removeTagsFromCourse(tagsToRemove, courseId, errors) {
+  const query = `
+    DELETE FROM courses_tags
+    WHERE course_id = $1
+    AND tag_id = ANY($2)
+  `;
+  const variables = [courseId, tagsToRemove];
+
+  dbLogger(query, variables, 'remove tags');
+
+  try {
+    await db.query(query, variables);
+  } catch (error) {
+    errors.push({
+      code: 500,
+      location: 'tags',
+      message: 'error in updating tags'
+    })
+  }
 }

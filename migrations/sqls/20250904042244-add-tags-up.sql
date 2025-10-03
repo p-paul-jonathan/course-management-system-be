@@ -1,0 +1,19 @@
+CREATE TABLE IF NOT EXISTS tags (
+  id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  name TEXT NOT NULL,
+  description TEXT
+);
+
+CREATE TABLE IF NOT EXISTS courses_tags (
+  id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  course_id INT NOT NULL,
+  tag_id INT NOT NULL,
+
+  CONSTRAINT fk_course
+    FOREIGN KEY(course_id)
+      REFERENCES courses(id),
+
+  CONSTRAINT fk_tag
+    FOREIGN KEY(tag_id)
+      REFERENCES tags(id)
+);

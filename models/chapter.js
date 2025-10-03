@@ -134,7 +134,7 @@ async function addChapterToCourse(id, courseId, errors) {
   const result = await db.query(query, variables);
 
   if (result.rowCount == 0) {
-    errors.append({
+    errors.push({
       code: 500,
       message: 'Error Occured while associating chapter with course',
       location: 'title'
@@ -155,7 +155,7 @@ async function removeChapterFromCourse(id, courseId, errors) {
   const result = await db.query(query, variables);
 
   if (result.rowCount == 0) {
-    errors.append({
+    errors.push({
       code: 500,
       message: 'Error Occured while removing chapter from course',
       location: 'title'
