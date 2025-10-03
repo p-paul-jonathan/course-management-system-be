@@ -19,7 +19,7 @@ module.exports.findByCourseId = async (courseId, page = 1, per = PER_PAGE) => {
     [courseId, chapterOrder],
     page,
     per,
-    'array_position($2, id)'
+    'array_position($2, chapters.id)'
   )
 
   return chaptersData;

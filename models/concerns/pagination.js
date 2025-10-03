@@ -6,20 +6,28 @@ const { validateTableName, dbLogger } = require('../../services/db');
 
 module.exports.findWithPagination = async (
   table,
-  conditionString = 'deleted_at IS NULL',
+  conditionString = null,
   conditionVars = [],
   page = DEFAULT_PAGE,
   per = PER_PAGE,
-  orderClause = 'id ASC',
-  joinClause = ''
+  orderClause = null,
+  joinClause = null
 ) => {
   per = Math.min(per, MAX_PER_PAGE);
+  const tableName = validateTableName(table);
+  let selectionQuery = '';
+
+  if (joinClause) {
+    selectionQuery = `SELECT DISTINCT ${tableName}.* from ${tableName}`
+  } else {
+    selectionQuery = `SELECT ${tableName}.* from ${tableName}`
+  }
 
   const query = `
-    SELECT DISTINCT ${validateTableName(table)}.* from ${validateTableName(table)}
-    ${joinClause}
-    WHERE ${conditionString}
-    ORDER BY ${orderClause}
+    ${selectionQuery}
+    ${joinClause || ''}
+    WHERE ${conditionString || `${tableName}.deleted_at IS NULL`}
+    ORDER BY ${orderClause || `${tableName}.id ASC`}
     LIMIT ${per}
     OFFSET ${(page - 1) * per}
   `;
@@ -28,7 +36,7 @@ module.exports.findWithPagination = async (
 
   const result = await db.query(query, conditionVars);
   const pageInfo = await this.pageInfo(
-    table, conditionString, conditionVars, page, per, orderClause, joinClause
+    table, conditionString, conditionVars, page, per, joinClause
   );
 
   return { [table]: result.rows, pageInfo };
@@ -36,17 +44,25 @@ module.exports.findWithPagination = async (
 
 module.exports.pageInfo = async (
   table,
-  conditionString = 'deleted_at IS NULL',
+  conditionString = null,
   conditionVars = [],
   page = DEFAULT_PAGE,
   per = PER_PAGE,
-  orderClause = 'id ASC',
-  joinClause = ''
+  joinClause = null
 ) => {
+  const tableName = validateTableName(table);
+  let selectionQuery = '';
+
+  if (joinClause) {
+    selectionQuery = `SELECT COUNT(DISTINCT ${tableName}.id) from ${tableName}`
+  } else {
+    selectionQuery = `SELECT COUNT(${tableName}.id) from ${tableName}`
+  }
+
   const query = `
-    SELECT COUNT(DISTINCT ${validateTableName(table)}.id) from ${validateTableName(table)}
-    ${joinClause}
-    WHERE ${conditionString}
+    ${selectionQuery}
+    ${joinClause || ''}
+    WHERE ${conditionString || `${tableName}.deleted_at IS NULL`}
   `;
 
   dbLogger(query, conditionVars, 'fetching pageInfo');
