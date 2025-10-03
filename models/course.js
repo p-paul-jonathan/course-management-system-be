@@ -18,32 +18,40 @@ module.exports.findAll = async (
   tagIds = []
 ) => {
   let searchQuery = `
-    live = $1
-    AND deleted_at IS NULL
+    courses.live = $1
+    AND courses.deleted_at IS NULL
   `;
   const searchVariables = [true];
   let varIndex = 2;
+  let joinClause = '';
 
   if (searchTerm) {
-    searchQuery += ` AND (name ILIKE $${varIndex} OR description ILIKE $${varIndex})`;
+    searchQuery += ` AND (courses.name ILIKE $${varIndex} OR courses.description ILIKE $${varIndex})`;
     searchVariables.push(`%${searchTerm}%`);
     varIndex++;
   }
 
   if (userIds && userIds.length > 0) {
-    searchQuery += ` AND user_id = ANY($${varIndex})`;
+    searchQuery += ` AND courses.user_id = ANY($${varIndex})`;
     searchVariables.push(userIds);
     varIndex++;
   }
 
-  // TODO: Paul add tag searching
+  if (tagIds && tagIds.length > 0) {
+    searchQuery += ` AND courses_tags.tag_id = ANY($${varIndex})`;
+    searchVariables.push(tagIds);
+    joinClause = 'INNER JOIN courses_tags ON courses.id = courses_tags.course_id';
+    varIndex++;
+  }
 
   const coursesData = await findWithPagination(
     'courses',
     searchQuery,
     searchVariables,
     page,
-    per
+    per,
+    'courses.id ASC',
+    joinClause
   );
 
   if (withUser) {
@@ -67,23 +75,36 @@ module.exports.findByUserId = async (
   tagIds = []
 ) => {
   let searchQuery = `
-    user_id = $1 AND
-    deleted_at IS NULL
+    courses.user_id = $1 AND
+    courses.deleted_at IS NULL
   `;
   const searchVariables = [userId];
+  let varIndex = 2;
+  let joinClause = '';
 
   if (searchTerm) {
     searchQuery += ` AND
-      (name ILIKE $2 OR description ILIKE $2)
+      (courses.name ILIKE $${varIndex} OR courses.description ILIKE $${varIndex})
     `;
     searchVariables.push(`%${searchTerm}%`);
+    varIndex++;
   }
+
+  if (tagIds && tagIds.length > 0) {
+    searchQuery += ` AND courses_tags.tag_id = ANY($${varIndex})`;
+    searchVariables.push(tagIds);
+    joinClause = 'INNER JOIN courses_tags ON courses.id = courses_tags.course_id';
+    varIndex++;
+  }
+
   const coursesData = await findWithPagination(
     'courses',
     searchQuery,
     searchVariables,
     page,
-    per
+    per,
+    'courses.id ASC',
+    joinClause
   );
 
   if (withUser) {

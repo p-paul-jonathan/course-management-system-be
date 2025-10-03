@@ -10,12 +10,14 @@ module.exports.findWithPagination = async (
   conditionVars = [],
   page = DEFAULT_PAGE,
   per = PER_PAGE,
-  orderClause = 'id ASC'
+  orderClause = 'id ASC',
+  joinClause = ''
 ) => {
   per = Math.min(per, MAX_PER_PAGE);
 
   const query = `
-    SELECT * from ${validateTableName(table)}
+    SELECT ${validateTableName(table)}.* from ${validateTableName(table)}
+    ${joinClause}
     WHERE ${conditionString}
     ORDER BY ${orderClause}
     LIMIT ${per}
@@ -26,7 +28,7 @@ module.exports.findWithPagination = async (
 
   const result = await db.query(query, conditionVars);
   const pageInfo = await this.pageInfo(
-    table, conditionString, conditionVars, page, per
+    table, conditionString, conditionVars, page, per, orderClause, joinClause
   );
 
   return { [table]: result.rows, pageInfo };
@@ -37,10 +39,13 @@ module.exports.pageInfo = async (
   conditionString = 'deleted_at IS NULL',
   conditionVars = [],
   page = DEFAULT_PAGE,
-  per = PER_PAGE
+  per = PER_PAGE,
+  orderClause = 'id ASC',
+  joinClause = ''
 ) => {
   const query = `
-    SELECT count(id) from ${validateTableName(table)}
+    SELECT count(${validateTableName(table)}.id) from ${validateTableName(table)}
+    ${joinClause}
     WHERE ${conditionString}
   `;
 
