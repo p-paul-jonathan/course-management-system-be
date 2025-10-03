@@ -134,6 +134,28 @@ module.exports.delete = async (id) => {
   return { tag, errors: [] };
 };
 
+module.exports.deleteUnusedTags = async () => {
+  const query = `
+    DELETE from tags WHERE tags.id IN (
+      SELECT tags.id FROM tags
+      LEFT JOIN courses_tags
+        ON tags.id = courses_tags.tag_id
+      WHERE courses_tags.course_id IS NULL
+    )
+    RETURNING *
+  `;
+  const variables = [];
+
+  dbLogger(query, variables, 'Deleting Unused Tags');
+
+  try {
+    await db.query(query, variables);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 const deleteCourseAssociations = async (id) => {
   const query = `
     DELETE FROM courses_tags

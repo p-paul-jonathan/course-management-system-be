@@ -30,13 +30,19 @@ const tagDelete = async ({ id }, context, _info) => {
   return await Tag.delete(id);
 };
 
+const cleanTags = async ({}, context, _info) => {
+  getAuthenticatedUser(context);
+  return await Tag.deleteUnusedTags();
+}
+
 const resolvers = {
   tags,
   tag,
   tagsByIds,
   tagCreate,
   tagUpdate,
-  tagDelete
+  tagDelete,
+  cleanTags
 };
 
 module.exports = resolvers;
